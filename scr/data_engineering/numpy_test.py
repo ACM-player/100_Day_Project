@@ -103,8 +103,9 @@ def calculate_global_stats(file_path):
     global_min = np.inf
     global_sum = 0.0
     global_count = 0
+    global_sq_sum = 0.0
     
-    data_generator = lazy_read_signal(file_path)
+    data_generator = lazy_read_signal(file_path,700)
     
     for data_piece in data_generator:
         merge_data = ' '.join(data_piece)
@@ -115,6 +116,7 @@ def calculate_global_stats(file_path):
         # 在几千万行的数据处理中，任何多余的运算都会拖慢整体速度，必须果断删掉。
         piece_max = np.max(numpy_data)
         piece_min = np.min(numpy_data)
+        piece_sq_sum = np.sum(numpy_data ** 2) 
         
         # 【工程准则 4：利用内置函数替代繁琐的 if 判断】
         # 使用 Python 原生的 max() 和 min()，代码更加“Pythonic（优雅）”。
@@ -124,13 +126,16 @@ def calculate_global_stats(file_path):
         # 累加总和与总数据点数
         global_sum += np.sum(numpy_data)
         global_count += numpy_data.size  # 使用 .size 直接获取总个数，比 .shape 更直观
+        global_sq_sum += piece_sq_sum
         
     # 【工程准则 5：防御性编程】
     # 防止万一读到了一个空文件，导致 global_count 为 0 触发“除以零 (ZeroDivisionError)”崩溃。
     global_mean = global_sum / global_count if global_count > 0 else 0.0
-    
+    global_sq_mean = global_sq_sum / global_count if global_count > 0 else 0.0
+    global_sigma_sq = max(0, global_sq_mean - (global_mean ** 2)) #\sigma^2 = E(x^2)-(E(X))^2
+    global_sigma = np.sqrt(global_sigma_sq)
     # 返回三个清晰的结果
-    return global_max, global_min, global_mean
+    return global_max, global_min, global_mean, global_sigma
 
 
 # --- 主程序测试入口 ---
@@ -141,7 +146,7 @@ if __name__ == "__main__":
     print("这可能需要几秒钟，请稍候...")
     
     # 优雅地接收函数返回的三个值
-    final_max, final_min, final_mean = calculate_global_stats(test_file_path)
+    final_max, final_min, final_mean, final_sigma = calculate_global_stats(test_file_path)
     
     print("-" * 40)
     print(f"分析完成！")

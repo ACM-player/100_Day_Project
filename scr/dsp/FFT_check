@@ -1,0 +1,72 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def run_fft_lie_detector(file_path, assumed_fs):
+    print(f"正在加载数据，假设采样率为: {assumed_fs} Hz ...")
+    
+    # 1. 暴力读取整个文件（1MB 随便读）
+    with open(file_path, 'r') as f:
+        # 将换行符替换为空格，方便一次性转为 numpy 数组
+        data_str = f.read().replace('\n', ' ')
+        
+    signal = np.fromstring(data_str, dtype=np.float32, sep=' ')
+    N = len(signal)
+    print(f"成功读取 {N} 个采样点。")
+    
+    # 2. 零均值化 (极其重要！否则 0Hz 的直流分量会像一柱擎天，把 50Hz 掩盖掉)
+    signal = signal - np.mean(signal)
+    
+    # 3. 执行快速傅里叶变换 (FFT)
+    print("正在施展时空魔法 (FFT)...")
+    fft_y = np.fft.fft(signal)                  # 算幅值
+    fft_x = np.fft.fftfreq(N, 1.0 / assumed_fs) # 算横坐标（频率轴）
+    
+    # 取正半轴 (FFT 结果是对称的，只看右边)
+    half_N = N // 2
+    fft_x_half = fft_x[:half_N]
+    # 归一化幅值，让 Y 轴表示真实的振幅大小
+    fft_y_half = np.abs(fft_y[:half_N]) / (N / 2) 
+
+    # 4. 画图寻找测谎基准线！
+    plt.figure(figsize=(14, 6))
+    
+    # 子图1：全局频谱概览
+    plt.subplot(1, 2, 1)
+    plt.plot(fft_x_half, fft_y_half, color='blue', alpha=0.8)
+    plt.title(f"全局频谱 (假设 fs = {assumed_fs} Hz)")
+    plt.xlabel("频率 Frequency (Hz)")
+    plt.ylabel("幅值 Amplitude")
+    plt.grid(True, alpha=0.3)
+    
+    # 子图2：超微距放大！专门锁定 0 ~ 100 Hz，寻找 50Hz 嫌疑人
+    plt.subplot(1, 2, 2)
+    plt.plot(fft_x_half, fft_y_half, color='red')
+    # 画一条 50Hz 的基准线
+    plt.axvline(x=50, color='black', linestyle='--', linewidth=2, label='50Hz 电网工频干扰')
+    
+    # 限制 X 轴的视野，只看极低频区域
+    plt.xlim(0, 100) 
+    
+    # 因为工频干扰通常很弱，我们需要稍微限制 Y 轴，防止被其他低频噪声压扁
+    # 这里取 0~100Hz 范围内的最大幅值的 1.2 倍作为顶端
+    low_freq_mask = (fft_x_half >= 0) & (fft_x_half <= 100)
+    max_amp_in_range = np.max(fft_y_half[low_freq_mask])
+    plt.ylim(0, max_amp_in_range * 1.2)
+    
+    plt.title("微距寻踪：50Hz 测谎仪 (0 - 100 Hz)")
+    plt.xlabel("频率 Frequency (Hz)")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.show()
+
+if __name__ == "__main__":
+    # 请替换为你的实际文件路径
+    test_file_path = "/Volumes/LKs' disk/中海油能源发展装备公司海上油气管道含砂监测技术应用研究/结题资料/现场数据/2022523928.txt"
+    
+    # 设定假设的采样率：我们先用论文里写的 44100 Hz 去试探它！
+    # 如果待会儿右边的图里，红色的山峰正好凸起在黑色的 50Hz 虚线上，就说明 44.1k 是真的！
+    ASSUMED_SAMPLING_RATE = 44100
+    
+    run_fft_lie_detector(test_file_path, ASSUMED_SAMPLING_RATE)

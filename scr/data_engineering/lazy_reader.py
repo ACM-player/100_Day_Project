@@ -101,7 +101,7 @@
 
 import os
 
-def lazy_read_signal(file_path, chunk_size=700):
+def lazy_read_signal(file_path, chunk_size):
     """
     带有内置路径检查的生成器函数
     """
@@ -110,7 +110,7 @@ def lazy_read_signal(file_path, chunk_size=700):
         # raise 关键字会立刻中止函数，并向上层（主程序）抛出一个错误对象
         raise FileNotFoundError(f"🚨 内部警报：你要找的文件 '{file_path}' 根本不存在！")
         
-    print(f"✅ 路径检查通过，准备开始读取: {file_path}")
+    # print(f"✅ 路径检查通过，准备开始读取: {file_path}")
     
     with open(file_path, 'r', encoding='utf-8') as file:
         file_chunk = []
